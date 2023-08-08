@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="zh-cmn-Hans">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>pyodide + xterm.js</title>
+    <link
+      rel="stylesheet"
+      href="https://cdn.jsdelivr.net/npm/xterm@5.2.1/css/xterm.min.css"
+    />
+  </head>
+  <body>
+    <h1>pyodide + xterm.js</h1>
+    <script src="https://cdn.jsdelivr.net/pyodide/v0.23.4/full/pyodide.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/axios@1.1.2/dist/axios.min.js"></script>
+    <script src=" https://cdn.jsdelivr.net/npm/xterm@5.2.1/lib/xterm.min.js "></script>
+    <div id="terminal"></div>
+    <script>
+      const term = new Terminal();
+      term.open(document.getElementById("terminal"));
+      let input = "";
+      let complete = false;
+      term.onData((recv) => {
+        if (recv.charCodeAt(0) == 13) {
+          term.write("\r\n");
+          complete = true;
+        } else {
+          term.write(recv);
+          input += recv;
+        }
+      });
+      async function main() {
+        let pyodide = await loadPyodide({
+          stdin: () => {
+            if (complete) {
+              s = input;
+              input = "";
+              complete = false;
+              return s;
+            }
+            return "";
+          },
+          stdout: (l) => {
+            term.write(l);
+            term.write("\r\n");
+          },
+        });
+        // Pyodide is now ready to use...
+        const rc = await axios.get("/run.py");
+        await pyodide.runPythonAsync(rc.data);
+      }
+      main();
+    </script>
+  </body>
+</html>
